@@ -5,11 +5,12 @@ var circuits = {},
     num_circuits = 0,
     jugglers = [],
     num_jugglers = 0,
-    complete_circuits = [],
+    bad_jugglers = [],
     circuit_names = [],
-    jPerCircuit;
+    jPerCircuit,
+    circuitsFilled;
 
-fs.readFile('real.txt', 'utf-8', function(err, data) {
+fs.readFile('test.txt', 'utf-8', function(err, data) {
   if(err) { console.log(err); }
 
   //load data
@@ -85,97 +86,110 @@ fs.readFile('real.txt', 'utf-8', function(err, data) {
   }
   var iter = 0;
 
-  while(complete_circuits.length !== num_circuits) {
-    var current_circuit = circuits[circuit_names[iter]],
-        remaining_spots = jPerCircuit - current_circuit.jugglers.length;
+  //add each juggler to their first pick circuit
+  for(var i = 0; i < jugglers.length; i++) {
+    circuits[jugglers[i].prefs[0].name].jugglers.push(jugglers[i]);
+  }
 
-    //sort jugglers according to current circuit
-    jugglers.sort(function(a,b) {
-      var a_score, b_score;
-      for(var j = 0; j < a.prefs.length; j++) {
-        if(a.prefs[j].name === current_circuit.name) {
-          a_score = a.prefs[j].score;
+  //sort jugglers in each circuit
+  for(var property in circuits) {
+    if(circuits.hasOwnProperty(property)) {
+      circuits[property].jugglers.sort(function(a,b) {
+        var a_score = a.prefs[0].score, 
+            b_score = b.prefs[0].score;
+
+        if(a_score < b_score) {
+          return 1;
+        } else if(a_score > b_score) {
+          return -1;
+        } else {
+          return 0;
         }
-      }
+      });
+    }
+  }
 
-      for(var j = 0; j < b.prefs.length; j++) {
-        if(b.prefs[j].name === current_circuit.name) {
-          b_score = b.prefs[j].score;
-        }
-      }
+  //loop through circuits and move jugglers that are ranked below the cutoff
+  while(!circuitsFilled(circuits, jPerCircuit)) {
+    var current_circuit = circuits[circuit_names[iter]];
+    
+    for (var i = 0; current_circuit.jugglers.length > jPerCircuit; i++) {
+      var movedJuggler = current_circuit.jugglers[i];
 
-      if(a_score < b_score) {
-        return 1;
-      } else if(a_score > b_score) {
-        return -1;
+      //remove first pick pref into removedprefs
+      movedJuggler.removed_prefs.push(movedJuggler.prefs.shift());
+
+      if(movedJuggler.prefs.length === 0) {
+        bad_jugglers.push(movedJuggler);
       } else {
-        return 0;
-      }
-    });
+        //move juggler to his next pick choice (at the correct position)
+        circuits[movedJuggler.prefs[0].name].jugglers.push(movedJuggler);
 
-    //add jugglers that are in top #jPerCircuit and first picked current circuit
-    for(var i = 0; i < jugglers.length && remaining_spots > 0; i++) {
-      if(jugglers[i].prefs[0].name === current_circuit.name) {
-        current_circuit.jugglers.push(jugglers[i]);
-        jugglers.splice(i,1);
-        i--;
-        remaining_spots--;
-        console.log("juggler added. remaining: " + jugglers.length);
-      }
-    }
+        circuits[movedJuggler.prefs[0].name].jugglers.sort(function(a,b) {
+          var a_score = a.prefs[0].score, 
+              b_score = b.prefs[0].score;
 
-    //move 'complete' circuits
-    for(var property in circuits) {
-      if(circuits.hasOwnProperty(property)) {
-        if(circuits[property].jugglers.length === jPerCircuit) {
-          //circuit is complete
-          complete_circuits.push(circuits[property]);
-          delete circuits[property];
-          circuit_names.splice(iter, 1);
-        }
-      }
-    }
-
-    //remove circuit prefs from remaining jugglers
-    for(var i = 0; i < complete_circuits.length; i++) {
-      var rname = complete_circuits[i].name; //remove circiuit's name
-      for(var j = 0; j < jugglers.length; j++) {
-        for(var x = 0; x < jugglers[j].prefs.length; x++) {
-          if(jugglers[j].prefs[x].name === rname) {
-            jugglers[j].removed_prefs.push(jugglers[j].prefs[x]);
-            jugglers[j].prefs.splice(x,1);
+          if(a_score < b_score) {
+            return 1;
+          } else if(a_score > b_score) {
+            return -1;
+          } else {
+            return 0;
           }
-        }
+        });
       }
-      console.log("circuit complete. uncomplete remaining: " + (num_circuits - complete_circuits.length));
-    }
 
+      current_circuit.jugglers.splice(i, 1);
+      i--;
+    }
+  
     iter = (iter+1) % circuit_names.length; 
   }
 
-  //print solution
-  for(var i = 0; i < complete_circuits.length; i++) {
-    var print_string = "";
-    print_string += complete_circuits[i].name + " ";
-
-    //add jugglers
-    for(var j = 0; j < complete_circuits[i].jugglers.length; j++) {
-      print_string += complete_circuits[i].jugglers[j].name + " ";
-      for(var x = 0; x < complete_circuits[i].jugglers[j].removed_prefs.length; x++) {
-        print_string += complete_circuits[i].jugglers[j].removed_prefs[x].name + ":" + complete_circuits[i].jugglers[j].removed_prefs[x].score + " "; 
+  //fill in empty spots with bad jugglers
+  for(var prop in circuits) {
+    if(circuits.hasOwnProperty(prop)) {
+      while(circuits[prop].jugglers.length < jPerCircuit) {
+        circuits[prop].jugglers.push(bad_jugglers.pop());
       }
-
-      for(var x = 0; x < complete_circuits[i].jugglers[j].prefs.length; x++) {
-        print_string += complete_circuits[i].jugglers[j].prefs[x].name + ":" + complete_circuits[i].jugglers[j].prefs[x].score + " "; 
-      }
-
-      print_string = print_string.substring(0, print_string.length-1);
-      print_string += ", ";
     }
-    
-    print_string = print_string.substring(0, print_string.length-2);
-    console.log(print_string);
+  }
+
+  //print solution
+  for(var prop in circuits) {
+    if(circuits.hasOwnProperty(prop)) {
+      var print_string = "";
+      print_string += circuits[prop].name + " ";
+
+      //add jugglers
+      for(var j = 0; j < circuits[prop].jugglers.length; j++) {
+        print_string += circuits[prop].jugglers[j].name + " ";
+        for(var x = 0; x < circuits[prop].jugglers[j].removed_prefs.length; x++) {
+          print_string += circuits[prop].jugglers[j].removed_prefs[x].name + ":" + circuits[prop].jugglers[j].removed_prefs[x].score + " "; 
+        }
+
+        for(var x = 0; x < circuits[prop].jugglers[j].prefs.length; x++) {
+          print_string += circuits[prop].jugglers[j].prefs[x].name + ":" + circuits[prop].jugglers[j].prefs[x].score + " "; 
+        }
+
+        print_string = print_string.substring(0, print_string.length-1);
+        print_string += ", ";
+      }
+      
+      print_string = print_string.substring(0, print_string.length-2);
+      console.log(print_string);
+    }
   }
 });
 
+circuitsFilled = function(cs, jpercs) {
+  for(var prop in cs) {
+    if(cs.hasOwnProperty(prop)) {
+      if(cs[prop].jugglers.length > jpercs) {
+        return false;
+      }
+    }
+  }
 
+  return true;
+}

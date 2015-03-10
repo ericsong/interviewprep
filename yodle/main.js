@@ -10,7 +10,7 @@ var circuits = {},
     jPerCircuit,
     circuitsFilled;
 
-fs.readFile('test.txt', 'utf-8', function(err, data) {
+fs.readFile('real.txt', 'utf-8', function(err, data) {
   if(err) { console.log(err); }
 
   //load data
@@ -113,7 +113,7 @@ fs.readFile('test.txt', 'utf-8', function(err, data) {
   while(!circuitsFilled(circuits, jPerCircuit)) {
     var current_circuit = circuits[circuit_names[iter]];
     
-    for (var i = 0; current_circuit.jugglers.length > jPerCircuit; i++) {
+    for (var i = jPerCircuit; current_circuit.jugglers.length > jPerCircuit; i++) {
       var movedJuggler = current_circuit.jugglers[i];
 
       //remove first pick pref into removedprefs
@@ -145,10 +145,16 @@ fs.readFile('test.txt', 'utf-8', function(err, data) {
   
     iter = (iter+1) % circuit_names.length; 
   }
-
+        
   //fill in empty spots with bad jugglers
   for(var prop in circuits) {
     if(circuits.hasOwnProperty(prop)) {
+      if(prop === "C1970") {
+        var sum = "";
+        for(var i = 0; i < circuits[prop].jugglers.length; i++) {
+          sum += circuits[prop].jugglers[i].name + " "; 
+        }
+      }
       while(circuits[prop].jugglers.length < jPerCircuit) {
         circuits[prop].jugglers.push(bad_jugglers.pop());
       }

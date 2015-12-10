@@ -72,14 +72,11 @@ def binarySearchStringPrefix(pre, arr):
     while imin <= imax:
         imid = int(math.ceil((imin + imax) / 2))
         if arr[imid][1].startswith(pre):
-            while(arr[imid][1].startswith(pre)):
-                # step backwards until condition no longer holds (many questions can match the prefix)
-                imid = imid - 1
-            return imid + 1
-        elif arr[imid][1] < pre:
-            imin = imid + 1
-        else:
+            return imid
+        elif pre < arr[imid][1]:
             imax = imid - 1
+        else:
+            imin = imid + 1
 
     return -1
 
@@ -100,20 +97,28 @@ numQueries = int(sys.stdin.readline())
 
 for i in range(numQueries):
     topic, query = sys.stdin.readline().strip().split(" ", 1)
-
     matchingTopics = getMatchingTopics(topic, htable)
-    index = binarySearchStringPrefix(query, questions)
+    matchIndex = binarySearchStringPrefix(query, questions)
     matchCount = 0
 
-    if index == -1:
+    if matchIndex == -1:
         print(0)
         continue
+    
     """
-    while index < len(questions) and questions[index][1].startswith(query):
+    scanIndex = matchIndex
+    # scan right of scanIndex for matches
+    while scanIndex < len(questions) and questions[scanIndex][1].startswith(query):
         if topic in matchingTopics:
             matchCount = matchCount + 1
 
-        index = index + 1 
+        scanIndex = scanIndex + 1
+
+    scanIndex = matchIndex - 1
+    # scan left of scanIndex for matches
+    while scanIndex >= 0 and questions[scanIndex][1].startswith(query):
+        if topic in matchingTopics:
+            matchCount = matchCount + 1
+
+        scanIndex = scanIndex - 1
     """
-    
-    print(matchCount)
